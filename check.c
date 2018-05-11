@@ -24,6 +24,8 @@ using namespace std;
 int query_OK_flag = 0;
 int login_OK_flag = 0;
 int upload_OK_flag = 0;
+char calc_boot_version[10] = {0};
+char ctrl_boot_version[10] = {0};
 void getvip(GtkWidget *widget, gpointer entry)
 {
    
@@ -52,7 +54,20 @@ void getvip(GtkWidget *widget, gpointer entry)
         //获取文本内容  
         entry_text = gtk_entry_get_text(GTK_ENTRY(psnView));  
 		memcpy(psn,entry_text,8);
+		
+		
         printf("psn:%s\n", psn);
+		query(psn);
+		
+		if(query_OK_flag == 1)
+		{
+			gtk_window_set_focus(GTK_WINDOW(window),VIPcode);
+		}
+		else
+		{
+			gtk_window_set_focus(GTK_WINDOW(window),psnView);
+		}
+		#if 0
 		//string psn(entry_text);		
 		//string res(fileContent);
 		//printf("%d\n",res.find(psn));
@@ -78,7 +93,7 @@ void getvip(GtkWidget *widget, gpointer entry)
 			gtk_window_set_focus(GTK_WINDOW(window),psnView);
 			return;
 		}
-		
+		#endif
  //const gchar *entry_text;  
   //printf("running\n");
         //获取文本内容  
@@ -88,7 +103,7 @@ void getvip(GtkWidget *widget, gpointer entry)
 		gtk_window_set_focus(GTK_WINDOW(window),psnView);
 
 		
-		FILE * vipList;
+		/*FILE * vipList;
 		vipList = fopen("vip.list","a+");
 		if(vipList == NULL)
 		{
@@ -98,10 +113,21 @@ void getvip(GtkWidget *widget, gpointer entry)
 		sprintf(vip_psn,"%s %s\n",psn,entry_text);
 		char vip_code[12];
 		memcpy(vip_code,entry_text,11);
-		fwrite(vip_psn,1,strlen(vip_psn),vipList);
+		fwrite(vip_psn,1,strlen(vip_psn),vipList);*/
+		char vip_code[12];
+		if(strncmp(entry_text,"N",1)==0)
+		{
+		 memcpy(vip_code,entry_text + 3,8);
+		 vip_code[8] = '\0';
+		}
+		else
+		{
+		 memcpy(vip_code,entry_text,8);
+		 vip_code[8] = '\0';
+		}
 		psn[8] = '\0';
 		upload(psn,vip_code);
-		fclose(vipList);
+		//fclose(vipList);
         return;  
    
 }
@@ -165,7 +191,7 @@ int main(int argc, char** argv) {
 	printf("%s\n",curl_version());
 	GtkTextBuffer *buffer;
 	login();
-	sleep(2);
+	//sleep(2);
 	
     //初始化GTK环境      
     gtk_init(&argc, &argv); 
@@ -255,6 +281,28 @@ size_t query_Log(void *ptr, size_t size, size_t nmemb, void *stream)
 	if((strstr((const char *)ptr, (const char *)"\"code\":0") != NULL))
 	{
 		printf("设备已添加\n");
+		char * position =  strstr((char *)ptr, (char *)"\"calcBootloaderFwVersion\":");
+		
+		if(position == NULL)
+		{
+			printf("can't find calc boot version\n");
+		}
+		else
+		{
+			memcpy(calc_boot_version,position + strlen((const char *)"\"calcBootloaderFwVersion\":"),2);
+			puts(calc_boot_version);
+		}
+		
+		position =  strstr((char *)ptr, (char *)"\"controlBootloaderFwVersion\":");
+		if(position == NULL)
+		{
+			printf("can't find ctrl boot version\n");
+		}
+		else
+		{
+			memcpy(ctrl_boot_version,position + strlen((const char *)"\"controlBootloaderFwVersion\":"),2);
+			puts(ctrl_boot_version);
+		}
 		query_OK_flag = 1;
 	}
 	else if((strstr((const char *)ptr, (const char *)"\"code\":200") != NULL))
@@ -271,9 +319,9 @@ void login(void)
 	{
 		return ;
 	}
-	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.internal.extantfuture.com/login/loginAction.do");
+	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.extantfuture.com/login/loginAction.do");
 	curl_easy_setopt(curl, CURLOPT_COOKIEJAR, "cookie.txt");
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "userAccount=yanan&userPassword=E10ADC3949BA59ABBE56E057F20F883E");
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "userAccount=lucy&userPassword=E10ADC3949BA59ABBE56E057F20F883E");
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, login_Log);
 	//curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 	curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -290,8 +338,8 @@ void upload(char * psn,char * vip_code)
 		return ;
 	}
 	char post[500];
-	sprintf(post,"psn=%s&hardwareEdition=10&controlBootloader=34&calcBootloader=35&controlVersion=2111&calcVersion=1954&deviceVersion=281479271743489&qrCode=%s&cmd=5",psn,vip_code);
-	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.internal.extantfuture.com/device/bootloaderEditionAction.do");
+	sprintf(post,"psn=%s&hardwareEdition=10&controlBootloader=%s&calcBootloader=%s&controlVersion=2116&calcVersion=1954&deviceVersion=281479271743489&qrCode=%s&cmd=5",psn,ctrl_boot_version,calc_boot_version,vip_code);
+	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.extantfuture.com/device/bootloaderEditionAction.do");
 	curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "cookie.txt");
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post);
 	printf("%s\n",post);
@@ -311,7 +359,7 @@ void query(char * psn)
 	{
 		return ;
 	}
-	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.internal.extantfuture.com/device/bootloaderEditionAction.do");
+	curl_easy_setopt(curl, CURLOPT_URL, "http://moss.extantfuture.com/device/bootloaderEditionAction.do");
 	curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "cookie.txt");
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post);
 	printf("%s\n",post);
